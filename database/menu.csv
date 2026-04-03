@@ -1,0 +1,7 @@
+id,rest_id,name,description,price,qty,available
+1,1,Margherita Pizza,Classic cheese pizza,12.99,10,1
+2,1,Pepperoni Pizza,Spicy pepperoni pizza,15.99,8,1
+3,2,Cheeseburger,Classic cheeseburger,9.99,15,1
+4,3,Daal,Mashkalai daal,30.0,1,1
+5,3,Fish,Rui fish,250.0,1,1
+6,3,Shak,Palong,50.0,1,1
