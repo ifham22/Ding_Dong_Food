@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 echo ==============================================
 echo 🍕 Foodie Express Server Build ^& Run Script
 echo ==============================================

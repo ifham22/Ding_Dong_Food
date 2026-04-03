@@ -1,4 +1,6 @@
-id,name,address,cuisine_type,image_url,open
-1,Pizza Palace,123 Main St,Italian,,1
-2,Burger Joint,456 Elm St,American,,1
-3,Zamzam,Iut,Bangladeshi,,1
+id,name,address,cuisine_type,image_url,password,open
+1,Pizza Palace,123 Main St,Italian,,pizzapass,1
+2,Burger Joint,456 Elm St,American,,burgerpass,1
+3,Zamzam,Iut,Bangladeshi,,zamzampass,1
+4,TestRest,TestAddr,Italian,,restpass,1
+5,PizzaNut,Iut CDS,italian,,nutpizza,1

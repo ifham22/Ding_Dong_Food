@@ -1,3 +1,9 @@
-id,name,email,address
-1,TestUser,test@iut.ac.bd,Dhaka
-2,Ifham Bin Hossain,ifham424@gmail.com,Iut South Hall of Residence
+id,name,email,address,password
+1,TestUser,test@iut.ac.bd,Dhaka,testpass
+2,Ifham Bin Hossain,ifham424@gmail.com,Iut South Hall of Residence,ifhampass
+3,NewTest,newtest@test.com,TestAddress,testpass123
+4,NewTest,newtest@test.com,TestAddress,testpass123
+5,TestRegular,testregular@test.com,TestAddr,pass123
+6,TestReg,testreg@test.com,TestAddr,testpass
+7,Alice Johnson,alice@example.com,123 Main St,alice123
+8,IFHAM BIN HOSSAIN 230042112,ifham@iut-dhaka.edu,,ifhain112

@@ -8,9 +8,9 @@ public class MenuManager {
     public boolean addMenuItem(int restId, String name, String description, double price, int initialQty) {
         try {
             int nextId = getNextMenuId();
-            FileWriter fw = new FileWriter("database/menu.csv", true);
-            fw.write(nextId + "," + restId + "," + name + "," + description + "," + price + "," + initialQty + "," + (initialQty > 0 ? 1 : 0) + "\n");
-            fw.close();
+            try (FileWriter fw = new FileWriter("database/menu.csv", true)) {
+                fw.write(nextId + "," + restId + "," + name + "," + description + "," + price + "," + initialQty + "," + (initialQty > 0 ? 1 : 0) + "\n");
+            }
             return true;
         } catch (Exception e) { e.printStackTrace(); return false; }
     }

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Connection Test</h1>
+    <button onclick="testAPI()">Test API Connection</button>
+    <pre id="result"></pre>
+    
+    <script>
+        function testAPI() {
+            const result = document.getElementById('result');
+            result.textContent = 'Testing...\n';
+            
+            // Test 1: Get restaurants
+            fetch('http://localhost:8081/api/restaurants')
+                .then(response => {
+                    result.textContent += 'Response status: ' + response.status + '\n';
+                    return response.json();
+                })
+                .then(data => {
+                    result.textContent += 'SUCCESS! Data received:\n';
+                    result.textContent += JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    result.textContent += 'ERROR: ' + error.message + '\n';
+                    result.textContent += 'Stack: ' + error.stack;
+                });
+        }
+    </script>
+</body>
+</html>

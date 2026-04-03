@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foodie Express (Pure HTTP)</title>
+    <title>Foodie Express</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -13,90 +13,280 @@
         <div class="logo">🍕 Foodie Express</div>
     </nav>
 
-    <header class="hero">
-        <div class="hero-content">
-            <h1>Craving Something Delicious?</h1>
-            <p>Order from the best local restaurants. Pure Vanilla JS fetching from Pure Java backend!</p>
-            <button class="btn-primary hero-btn" onclick="fetchRestaurants()">Refresh Restaurants</button>
-            <div class="search-section">
-                <input type="text" id="search-input" placeholder="Search restaurants...">
-                <button onclick="searchRestaurants()">Search</button>
+    <!-- PAGE 1: LANDING PAGE -->
+    <div id="landing-page" class="page" style="display: block;">
+        <div class="page-container">
+            <div class="content-center">
+                <h1>Welcome to Foodie Express</h1>
+                <p>Order delicious food from your favorite restaurants</p>
+                <div class="button-group" style="margin-top: 40px;">
+                    <button class="btn-primary" onclick="goToPage('user-choice')">User</button>
+                    <button class="btn-primary" onclick="goToPage('restaurant-choice')">Restaurant</button>
+                </div>
             </div>
         </div>
-    </header>
+    </div>
 
-    <main class="container">
-        <h2 class="section-title">Top Restaurants (<span id="status">Loading...</span>)</h2>
-        <div class="restaurant-grid" id="restaurant-container">
-            <!-- Restaurants will be injected here via script.js -->
+    <!-- PAGE 2: USER CHOICE PAGE -->
+    <div id="user-choice" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goBack()">← Back</button>
         </div>
-    </main>
+        <div class="page-container">
+            <div class="content-center">
+                <h2>User Portal</h2>
+                <p>Choose an option to continue</p>
+                <div class="button-group" style="margin-top: 40px;">
+                    <button class="btn-primary" onclick="goToPage('register')">Register</button>
+                    <button class="btn-primary" onclick="goToPage('login')">Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- PAGE 3: REGISTRATION PAGE -->
+    <div id="register" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goBack()">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="form-container">
+                <h2>Create Your Account</h2>
+                <form id="register-user-form">
+                    <div class="form-group">
+                        <label for="reg-name">Full Name *</label>
+                        <input type="text" id="reg-name" name="name" placeholder="Enter your full name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reg-email">Email Address *</label>
+                        <input type="email" id="reg-email" name="email" placeholder="Enter your email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reg-password">Password *</label>
+                        <input type="password" id="reg-password" name="password" placeholder="Enter a strong password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reg-address">Address (Optional)</label>
+                        <input type="text" id="reg-address" name="address" placeholder="Enter your delivery address">
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Register</button>
+                </form>
+                <p style="text-align: center; margin-top: 20px;">Already have an account? <a href="#" onclick="goToPage('login'); return false;" style="color: var(--primary); text-decoration: none; font-weight: 600;">Login here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 4: LOGIN PAGE -->
+    <div id="login" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goBack()">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="form-container">
+                <h2>Login to Your Account</h2>
+                <form id="login-user-form">
+                    <div class="form-group">
+                        <label for="login-user">Username or Email *</label>
+                        <input type="text" id="login-user" name="user" placeholder="Enter your username or email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="login-password">Password *</label>
+                        <input type="password" id="login-password" name="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Login</button>
+                </form>
+                <p style="text-align: center; margin-top: 20px;">Don't have an account? <a href="#" onclick="goToPage('register'); return false;" style="color: var(--primary); text-decoration: none; font-weight: 600;">Register here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 5: MAIN APP (Restaurants & Checkout) -->
+    <div id="main-app" class="page" style="display: none;">
+        <div class="page-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <button class="btn-back" onclick="logoutUser()">← Logout</button>
+                <div id="user-status" style="text-align: center; flex: 1;">
+                    <strong id="current-user-name"></strong>
+                </div>
+                <button class="btn-back" onclick="goToPage('checkout')" style="padding: 8px 15px; background: var(--primary); color: white;">🛒 Checkout</button>
+            </div>
+        </div>
+
+        <div class="page-container">
+            <header class="hero">
+                <div class="hero-content">
+                    <h1>Craving Something Delicious?</h1>
+                    <p>Order from the best local restaurants</p>
+                    <button class="btn-primary hero-btn" onclick="fetchRestaurants()">Refresh Restaurants</button>
+                    <div class="search-section">
+                        <input type="text" id="search-input" placeholder="Search restaurants...">
+                        <button onclick="searchRestaurants()">Search</button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="container">
+                <h2 class="section-title">Top Restaurants (<span id="status">Loading...</span>)</h2>
+                <div class="restaurant-grid" id="restaurant-container">
+                    <!-- Restaurants will be injected here -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- RESTAURANT CHOICE PAGE -->
+    <div id="restaurant-choice" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goBack()">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="content-center">
+                <h2>Restaurant Portal</h2>
+                <p>Choose an option to continue</p>
+                <div class="button-group" style="margin-top: 40px;">
+                    <button class="btn-primary" onclick="goToPage('restaurant-register')">Register Restaurant</button>
+                    <button class="btn-primary" onclick="goToPage('restaurant-login')">Login as Restaurant</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESTAURANT REGISTRATION PAGE -->
+    <div id="restaurant-register" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goBack()">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="form-container">
+                <h2>Register Your Restaurant</h2>
+                <form id="register-restaurant-form">
+                    <div class="form-group">
+                        <label for="rest-name">Restaurant Name *</label>
+                        <input type="text" id="rest-name" name="name" placeholder="Enter restaurant name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rest-address">Address *</label>
+                        <input type="text" id="rest-address" name="address" placeholder="Enter restaurant address" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rest-cuisine">Cuisine Type *</label>
+                        <input type="text" id="rest-cuisine" name="cuisineType" placeholder="e.g., Italian, Bangladeshi" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rest-password">Password *</label>
+                        <input type="password" id="rest-password" name="password" placeholder="Enter a strong password" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Register</button>
+                </form>
+                <p style="text-align: center; margin-top: 20px;">Already have an account? <a href="#" onclick="goToPage('restaurant-login'); return false;" style="color: var(--primary); text-decoration: none; font-weight: 600;">Login here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESTAURANT LOGIN PAGE -->
+    <div id="restaurant-login" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goBack()">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="form-container">
+                <h2>Login to Your Restaurant</h2>
+                <form id="restaurant-login-form">
+                    <div class="form-group">
+                        <label for="rest-login-name">Restaurant Name *</label>
+                        <input type="text" id="rest-login-name" name="name" placeholder="Enter your restaurant name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rest-login-password">Password *</label>
+                        <input type="password" id="rest-login-password" name="password" placeholder="Enter your password" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Login</button>
+                </form>
+                <p style="text-align: center; margin-top: 20px;">Don't have an account? <a href="#" onclick="goToPage('restaurant-register'); return false;" style="color: var(--primary); text-decoration: none; font-weight: 600;">Register here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESTAURANT DASHBOARD PAGE -->
+    <div id="restaurant-dashboard" class="page" style="display: none;">
+        <div class="page-header">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <button class="btn-back" onclick="logoutRestaurant()">← Logout</button>
+                <div style="text-align: center; flex: 1;">
+                    <strong id="current-restaurant-name"></strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-container">
+            <div style="max-width: 1000px; width: 100%; margin: 0 auto; padding: 0 20px;">
+                <h2>Restaurant Dashboard</h2>
+                
+                <div style="margin-bottom: 30px;">
+                    <h3>Add New Menu Item</h3>
+                    <form id="restaurant-add-menu-form">
+                        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <input type="text" name="name" placeholder="Item Name" required style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <input type="text" name="description" placeholder="Description" required style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <input type="number" name="price" placeholder="Price" step="0.01" required style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                            <input type="number" name="qty" placeholder="Quantity" required style="padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+                        <button type="submit" class="btn-primary" style="width: 100%; padding: 10px;">Add Item</button>
+                    </form>
+                </div>
+
+                <div style="margin-bottom: 30px;">
+                    <h3>Your Menu Items</h3>
+                    <div id="restaurant-menu-list" style="background: #f9f9f9; padding: 20px; border-radius: 5px; min-height: 100px;">
+                        <p>No menu items yet. Add one above!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 7: CHECKOUT PAGE -->
+    <div id="checkout" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goToPage('main-app')">← Back to Restaurants</button>
+        </div>
+        <div class="page-container">
+            <div class="checkout-container">
+                <h2>Your Shopping Cart</h2>
+                <div id="cart-items" style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 5px; min-height: 100px;">
+                    Your cart is empty.
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 5px;">
+                    <p><strong>Total: <span id="cart-total">Tk 0.00</span></strong></p>
+                </div>
+                <button class="btn-primary" style="width: 100%; margin-top: 20px; padding: 12px;" onclick="checkoutOrder()">Place Order</button>
+                <button class="btn-secondary" style="width: 100%; margin-top: 10px; padding: 12px;" onclick="clearCart()">Clear Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MENU MODAL -->
     <div id="menu-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 80%; max-width: 600px; max-height: 80%; overflow-y: auto;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; max-height: 80%; overflow-y: auto;">
             <h2 id="menu-restaurant-name">Menu</h2>
             <div id="menu-items-container">
                 <!-- Menu items will be displayed here -->
             </div>
-            <button onclick="closeMenuModal()" style="margin-top: 20px; padding: 10px 20px; background: #ff6b6b; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+            <button onclick="closeMenuModal()" style="margin-top: 20px; padding: 10px 20px; background: #ff6b6b; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%;">Close</button>
         </div>
     </div>
-
-    <section id="user-panel" style="margin: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
-        <h2>User Management</h2>
-
-        <h3>Register New User</h3>
-        <form id="register-user-form">
-            <input type="text" name="name" placeholder="User Name" required><br><br>
-            <input type="email" name="email" placeholder="Email" required><br><br>
-            <input type="text" name="address" placeholder="Address" required><br><br>
-            <button type="submit">Register User</button>
-        </form>
-
-        <h3>Local User Lookup</h3>
-        <button class="btn-secondary" onclick="fetchUsers()">Refresh Users</button>
-        <div id="user-list" style="margin-top: 10px;"></div>
-    </section>
-
-    <section id="restaurant-panel" style="margin: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
-        <h2>Restaurant Management</h2>
-        
-        <h3>Register New Restaurant</h3>
-        <form id="register-form">
-            <input type="text" name="name" placeholder="Restaurant Name" required><br><br>
-            <input type="text" name="address" placeholder="Address" required><br><br>
-            <input type="text" name="cuisineType" placeholder="Cuisine Type" required><br><br>
-            <button type="submit">Register Restaurant</button>
-        </form>
-        
-        <h3>Add Menu Item to Existing Restaurant</h3>
-        <form id="add-menu-form">
-            <select id="restaurant-select" name="restId" required>
-                <option value="">Select Restaurant</option>
-            </select><br><br>
-            <input type="text" name="name" placeholder="Item Name" required><br><br>
-            <input type="text" name="description" placeholder="Description" required><br><br>
-            <input type="number" name="price" placeholder="Price" step="0.01" required><br><br>
-            <input type="number" name="qty" placeholder="Quantity" required><br><br>
-            <button type="submit">Add Menu Item</button>
-        </form>
-    </section>
-
-    <section id="order-panel" style="margin: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
-        <h2>Order Cart + Scheduling</h2>
-
-        <p>Select a restaurant menu, then use buttons in the menu modal to add to cart.</p>
-        <p><strong>Cart:</strong> <span id="cart-summary">0 items</span></p>
-        <div id="cart-items" style="margin-bottom: 10px;">Your cart is empty.</div>
-        <button class="btn-secondary" onclick="checkoutOrder()">Checkout (Place Order & Process Payment)</button>
-
-        <h3>Schedule an Order</h3>
-        <form id="schedule-form">
-            <input type="number" id="schedule-order-id" placeholder="Order ID" required><br><br>
-            <input type="datetime-local" id="schedule-time" required><br><br>
-            <button type="submit">Schedule Delivery</button>
-        </form>
-    </section>
 
     <footer class="footer">
         <p>&copy; 2026 Foodie Express. Pure Java HttpServer, Vanilla JS & CSV.</p>
