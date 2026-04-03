@@ -77,7 +77,7 @@ public class MainServer {
                     boolean first = true;
                     while ((line = br.readLine()) != null) {
                         String[] values = line.split(",");
-                        if (values.length < 6 || !values[5].equals("1")) {
+                        if (values.length < 7 || !values[6].equals("1")) {
                             continue;
                         }
 
@@ -146,7 +146,7 @@ public class MainServer {
                     boolean first = true;
                     while ((line = br.readLine()) != null) {
                         String[] values = line.split(",");
-                        if (values.length < 7 || !values[1].equals(String.valueOf(restId)) || !values[6].equals("1")) {
+                        if (values.length < 6 || !values[1].equals(String.valueOf(restId))) {
                             continue;
                         }
 
@@ -699,37 +699,47 @@ public class MainServer {
             }
 
             if ("POST".equals(exchange.getRequestMethod())) {
-                InputStream is = exchange.getRequestBody();
-                String body = new String(is.readAllBytes());
-                // Assume body is userId=...&restId=...&items=1:2;3:1 (menuId:qty;...)
-                String[] params = body.split("&");
-                int userId = Integer.parseInt(java.net.URLDecoder.decode(params[0].split("=")[1], "UTF-8"));
-                int restId = Integer.parseInt(java.net.URLDecoder.decode(params[1].split("=")[1], "UTF-8"));
-                String itemsStr = java.net.URLDecoder.decode(params[2].split("=")[1], "UTF-8");
-
-                List<Integer> menuItemIds = new ArrayList<>();
-                List<Integer> quantities = new ArrayList<>();
-                String[] itemPairs = itemsStr.split(";");
-                for (String pair : itemPairs) {
-                    String[] pq = pair.split(":");
-                    menuItemIds.add(Integer.parseInt(pq[0]));
-                    quantities.add(Integer.parseInt(pq[1]));
-                }
-
-                PlaceOrder po = new PlaceOrder();
-                boolean success = po.execute(userId, restId, menuItemIds, quantities);
-                if (success) {
-                    // Process payment
-                    double total = calculateTotal(menuItemIds, quantities);
-                    PaymentProcessor pp = new PaymentProcessor();
-                    boolean paymentSuccess = pp.processPayment(0, total, "CREDIT_CARD"); // dummy orderId
-                    if (paymentSuccess) {
-                        sendResponse(exchange, 200, "{\"message\":\"Order placed and payment processed\"}");
-                    } else {
-                        sendResponse(exchange, 500, "{\"error\":\"Payment failed\"}");
+                try {
+                    InputStream is = exchange.getRequestBody();
+                    String body = new String(is.readAllBytes());
+                    System.out.println("Place order request body: " + body);
+                    
+                    // Assume body is userId=...&restId=...&items=1:2;3:1 (menuId:qty;...)
+                    String[] params = body.split("&");
+                    if (params.length < 3) {
+                        sendResponse(exchange, 400, "{\"error\":\"Missing parameters\"}");
+                        return;
                     }
-                } else {
-                    sendResponse(exchange, 500, "{\"error\":\"Failed to place order\"}");
+                    
+                    int userId = Integer.parseInt(java.net.URLDecoder.decode(params[0].split("=")[1], "UTF-8"));
+                    int restId = Integer.parseInt(java.net.URLDecoder.decode(params[1].split("=")[1], "UTF-8"));
+                    String itemsStr = java.net.URLDecoder.decode(params[2].split("=")[1], "UTF-8");
+
+                    System.out.println("Parsed: userId=" + userId + ", restId=" + restId + ", items=" + itemsStr);
+
+                    List<Integer> menuItemIds = new ArrayList<>();
+                    List<Integer> quantities = new ArrayList<>();
+                    String[] itemPairs = itemsStr.split(";");
+                    for (String pair : itemPairs) {
+                        String[] pq = pair.split(":");
+                        menuItemIds.add(Integer.parseInt(pq[0]));
+                        quantities.add(Integer.parseInt(pq[1]));
+                    }
+
+                    PlaceOrder po = new PlaceOrder();
+                    boolean success = po.execute(userId, restId, menuItemIds, quantities);
+                    if (success) {
+                        sendResponse(exchange, 200, "{\"message\":\"Order placed successfully\"}");
+                    } else {
+                        sendResponse(exchange, 500, "{\"error\":\"Order validation failed - check stock or menu items\"}");
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.println("Number parsing error: " + e.getMessage());
+                    sendResponse(exchange, 400, "{\"error\":\"Invalid number format\"}");
+                } catch (Exception e) {
+                    System.out.println("Order processing error: " + e.getMessage());
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
                 }
             } else {
                 exchange.sendResponseHeaders(405, -1);

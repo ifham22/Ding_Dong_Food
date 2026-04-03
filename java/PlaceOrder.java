@@ -7,19 +7,33 @@ import java.util.List;
 public class PlaceOrder {
     public boolean execute(int userId, int restId, List<Integer> menuItemIds, List<Integer> quantities) {
         try {
+            System.out.println("PlaceOrder.execute() -> userId=" + userId + ", restId=" + restId + ", items=" + menuItemIds);
             double total = calculateTotal(menuItemIds, quantities);
-            if (total == 0) return false; // invalid order
+            System.out.println("Calculated total: " + total);
+            if (total == 0) {
+                System.out.println("ERROR: Total is 0 - invalid order");
+                return false; // invalid order
+            }
 
             // Update quantities
-            if (!updateQuantities(menuItemIds, quantities)) return false;
+            if (!updateQuantities(menuItemIds, quantities)) {
+                System.out.println("ERROR: updateQuantities failed");
+                return false;
+            }
 
             int nextId = getNextOrderId();
             String items = buildItemsString(menuItemIds, quantities);
+            System.out.println("Writing order: id=" + nextId + ", items=" + items);
             FileWriter fw = new FileWriter("database/orders.csv", true);
             fw.write(nextId + "," + userId + "," + restId + ",PREPARING," + total + "," + items + "\n");
             fw.close();
+            System.out.println("Order written successfully");
             return true;
-        } catch (Exception e) { e.printStackTrace(); return false; }
+        } catch (Exception e) {
+            System.out.println("PlaceOrder exception: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     private double calculateTotal(List<Integer> menuItemIds, List<Integer> quantities) {

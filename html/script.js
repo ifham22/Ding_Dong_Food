@@ -453,14 +453,22 @@ function checkoutOrder() {
     const userId = currentUser.id;
     const restId = cart[0].restId;
     const items = cart.map(i => `${i.menuId}:${i.quantity}`).join(';');
+    
+    console.log('Placing order:', { userId, restId, items, cart });
+    const requestBody = `userId=${encodeURIComponent(userId)}&restId=${encodeURIComponent(restId)}&items=${encodeURIComponent(items)}`;
+    console.log('Request body:', requestBody);
 
     fetch(apiUrl('/api/place-order'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `userId=${encodeURIComponent(userId)}&restId=${encodeURIComponent(restId)}&items=${encodeURIComponent(items)}`
+        body: requestBody
     })
-    .then(r => r.json())
+    .then(r => {
+        console.log('Response status:', r.status);
+        return r.json();
+    })
     .then(res => {
+        console.log('Order response:', res);
         if (res.message) {
             alert('Order placed successfully!');
             cart = [];
@@ -468,10 +476,13 @@ function checkoutOrder() {
             fetchRestaurants();
             goToPage('main-app');
         } else {
-            alert(res.error || 'Order failed');
+            alert('Error: ' + (res.error || 'Order failed'));
         }
     })
-    .catch(err => alert('Error: ' + err));
+    .catch(err => {
+        console.error('Order error:', err);
+        alert('Error: ' + err);
+    });
 }
 
 function addMenuItem(e) {
