@@ -42,6 +42,22 @@
         </div>
     </div>
 
+    <section id="user-panel" style="margin: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
+        <h2>User Management</h2>
+
+        <h3>Register New User</h3>
+        <form id="register-user-form">
+            <input type="text" name="name" placeholder="User Name" required><br><br>
+            <input type="email" name="email" placeholder="Email" required><br><br>
+            <input type="text" name="address" placeholder="Address" required><br><br>
+            <button type="submit">Register User</button>
+        </form>
+
+        <h3>Local User Lookup</h3>
+        <button class="btn-secondary" onclick="fetchUsers()">Refresh Users</button>
+        <div id="user-list" style="margin-top: 10px;"></div>
+    </section>
+
     <section id="restaurant-panel" style="margin: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
         <h2>Restaurant Management</h2>
         
@@ -63,6 +79,22 @@
             <input type="number" name="price" placeholder="Price" step="0.01" required><br><br>
             <input type="number" name="qty" placeholder="Quantity" required><br><br>
             <button type="submit">Add Menu Item</button>
+        </form>
+    </section>
+
+    <section id="order-panel" style="margin: 20px; padding: 20px; border: 1px solid #ccc; background: #f9f9f9;">
+        <h2>Order Cart + Scheduling</h2>
+
+        <p>Select a restaurant menu, then use buttons in the menu modal to add to cart.</p>
+        <p><strong>Cart:</strong> <span id="cart-summary">0 items</span></p>
+        <div id="cart-items" style="margin-bottom: 10px;">Your cart is empty.</div>
+        <button class="btn-secondary" onclick="checkoutOrder()">Checkout (Place Order & Process Payment)</button>
+
+        <h3>Schedule an Order</h3>
+        <form id="schedule-form">
+            <input type="number" id="schedule-order-id" placeholder="Order ID" required><br><br>
+            <input type="datetime-local" id="schedule-time" required><br><br>
+            <button type="submit">Schedule Delivery</button>
         </form>
     </section>
 

@@ -31,12 +31,12 @@ Ding_Dong_Food is a comprehensive food delivery and restaurant management system
 1. Ensure you have Java installed on your system.
 2. Clone the repository: `git clone https://github.com/ifham22/Ding_Dong_Food.git`
 3. Navigate to the project directory.
-4. Run the `run.bat` file to start the server.
+4. Run the `.\run.bat` file to start the server.
 5. Open `html/index.html` in a web browser to access the frontend.
 
 ## Usage
 
-- Start the server using `run.bat`.
+- Start the server using `.\run.bat`.
 - Access the web interface to register users, browse restaurants, place orders, etc.
 - Restaurants can manage their data through the backend.
 

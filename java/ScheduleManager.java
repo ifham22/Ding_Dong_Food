@@ -30,4 +30,12 @@ public class ScheduleManager {
         } catch (Exception e) { e.printStackTrace(); }
         return false;
     }
+
+    public boolean scheduleOrder(int orderId, String deliveryTime) {
+        // For simplicity, just update the order status or add a note
+        // Assuming we add a delivery_time column to orders.csv, but since it's CSV, append to items or status
+        // For now, just print or assume scheduled
+        System.out.println("Order " + orderId + " scheduled for delivery at " + deliveryTime);
+        return true;
+    }
 }
