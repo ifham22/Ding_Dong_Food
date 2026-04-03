@@ -40,10 +40,3 @@ Ding_Dong_Food is a comprehensive food delivery and restaurant management system
 - Access the web interface to register users, browse restaurants, place orders, etc.
 - Restaurants can manage their data through the backend.
 
-## Contributing
-
-This is a lab project. For contributions, please contact the author.
-
-## License
-
-[Add license if applicable, e.g., MIT]
