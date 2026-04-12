@@ -1,7 +1,71 @@
-id,rest_id,name,description,price,qty
-1,1,Margherita Pizza,Classic cheese pizza,12.99,100
-2,1,Pepperoni Pizza,Spicy pepperoni pizza,15.99,100
-3,2,Cheeseburger,Classic cheeseburger,9.99,100
-4,3,Daal,Mashkalai daal,30.0,99
-5,3,Fish,Rui fish,250.0,100
-6,3,Shak,Palong,50.0,100
+id,rest_id,name,description,category,price,qty,size_options
+1,1,Margherita Pizza,Classic cheese pizza,Pizza,899,100,Small|Medium|Large
+2,1,Pepperoni Pizza,Spicy pepperoni pizza,Pizza,999,100,Small|Medium|Large
+3,1,Chicken Tikka Pizza,Indian-style pizza,Pizza,1099,100,Small|Medium|Large
+4,1,Garlic Bread,Crispy garlic bread,Appetizers,299,100,-
+5,1,Coca Cola,Cold beverage,Beverages,99,100,-
+6,2,Classic Burger,Beef patty with toppings,Burgers,799,100,-
+7,2,Chicken Burger,Grilled chicken burger,Burgers,699,100,-
+8,2,Double Cheese Burger,Double patty with cheese,Burgers,899,100,-
+9,2,French Fries,Crispy fries,Fast Food,399,100,-
+10,2,Milkshake,Vanilla milkshake,Beverages,249,100,-
+11,3,Chicken Biryani,Rice with spiced chicken,Biryani,250,100,-
+12,3,Mutton Biryani,Rice with mutton,Biryani,300,100,-
+13,3,Deshi Roti,Traditional bread,Bangladeshi,30,100,-
+14,3,Daal Fry,Lentil curry,Bangladeshi,80,100,-
+15,3,Fish Curry,Traditional fish curry,Bangladeshi,120,100,-
+16,3,Chai,Traditional tea,Beverages,20,100,-
+17,4,Shahi Biryani,Premium biryani,Biryani,280,100,-
+18,4,Vegetable Biryani,Veg biryani,Biryani,180,100,-
+19,4,Butter Chicken,Creamy chicken,Indian,350,100,-
+20,4,Tandoori Chicken,Grilled chicken,Indian,320,100,-
+21,4,Naan,Indian bread,Indian,80,100,-
+22,4,Lassi,Sweet yogurt drink,Beverages,120,100,-
+23,5,Cheesy Garlic Pizza,Cheese and garlic,Pizza,849,100,Small|Medium|Large
+24,5,Veggie Pizza,Vegetables pizza,Pizza,699,100,Small|Medium|Large
+25,5,BBQ Chicken Pizza,BBQ flavored,Pizza,949,100,Small|Medium|Large
+26,5,Cheese Fries,Loaded fries,Fast Food,349,100,-
+27,5,Burger,Simple burger,Burgers,499,100,-
+28,5,Cold Drink,Soft drink,Beverages,60,100,-
+29,6,Paneer Tikka,Indian cheese,Indian,450,100,-
+30,6,Biryani,Spiced rice,Indian,380,100,-
+31,6,Masala Dosa,Indian crepe,Indian,320,100,-
+32,6,Raita,Yogurt side,Indian,120,100,-
+33,6,Mango Lassi,Mango drink,Beverages,180,100,-
+34,6,Samosa,Fried pastry,Appetizers,150,100,-
+35,7,Fettuccine Alfredo,Creamy pasta,Italian,650,100,-
+36,7,Spaghetti Carbonara,Classic pasta,Italian,550,100,-
+37,7,Garlic Shrimp Pasta,Seafood pasta,Italian,750,100,-
+38,7,Caesar Salad,Fresh salad,Appetizers,280,100,-
+39,7,Tiramisu,Italian dessert,Desserts,350,100,-
+40,7,Espresso,Strong coffee,Beverages,150,100,-
+41,8,Chicken Kurma,Mild curry,Bangladeshi,280,100,-
+42,8,Hilsa Fish,Traditional fish,Bangladeshi,200,100,-
+43,8,Palong Shak,Leafy greens,Bangladeshi,120,100,-
+44,8,Luchi,Puffed bread,Bangladeshi,40,100,-
+45,8,Pulao,Rice preparation,Bangladeshi,200,100,-
+46,8,Chutneys,Various chutneys,Bangladeshi,60,100,-
+47,9,Spicy Chicken Fry,Fried chicken,Bangladeshi,280,100,-
+48,9,Popcorn Chicken,Crispy pieces,Bangladeshi,240,100,-
+49,9,Chicken Roast,Traditional roast,Bangladeshi,320,100,-
+50,9,Rice,Steamed rice,Bangladeshi,40,100,-
+51,9,Salad,Fresh greens,Appetizers,120,100,-
+52,9,Lemonada,Lemon drink,Beverages,80,100,-
+53,10,Grilled Fish,Pan-seared fish,Continental,850,100,-
+54,10,Beef Steak,Prime steak,Continental,950,100,-
+55,10,Chicken Piccata,Lemon chicken,Continental,750,100,-
+56,10,Mixed Vegetables,Seasonal veggies,Continental,450,100,-
+57,10,Wine Pairings,Various wines,Beverages,1200,100,-
+58,10,Chocolate Cake,Dessert,Desserts,480,100,-
+59,11,Sweet and Sour Chicken,Asian style,Chinese,350,100,-
+60,11,Fried Rice,Egg fried rice,Chinese,280,100,-
+61,11,Chow Mein,Noodle dish,Chinese,320,100,-
+62,11,Spring Rolls,Fried rolls,Appetizers,220,100,-
+63,11,Hot and Sour Soup,Soup,Chinese,180,100,-
+64,11,Fortune Cookies,Dessert,Desserts,120,100,-
+65,12,Biriyani,Student combo,Bangladeshi,150,100,-
+66,12,Fried Rice,Budget-friendly,Bangladeshi,120,100,-
+67,12,Chicken Curry,Simple curry,Bangladeshi,140,100,-
+68,12,Roti,Bakery,Bangladeshi,15,100,-
+69,12,Omelette,Egg dish,Bangladeshi,80,100,-
+70,12,Tea,Hot tea,Beverages,15,100,-

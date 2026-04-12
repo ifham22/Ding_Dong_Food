@@ -76,6 +76,12 @@ function goToPage(pageId) {
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.style.display = 'none');
 
+    // Stop order refresh when leaving order-tracking page
+    if (currentPage === 'order-tracking' && orderRefreshInterval) {
+        clearInterval(orderRefreshInterval);
+        orderRefreshInterval = null;
+    }
+
     // Track history
     pageHistory.push(currentPage);
     currentPage = pageId;
@@ -92,6 +98,9 @@ function goToPage(pageId) {
         }
         if (pageId === 'checkout') {
             updateCartDisplay();
+        }
+        if (pageId === 'user-profile') {
+            loadUserProfile();
         }
     }
 }
@@ -282,9 +291,13 @@ function fetchRestaurants(url = apiUrl('/api/restaurants')) {
         });
 }
 
-function searchRestaurants() {
-    const q = document.getElementById('search-input').value;
-    fetchRestaurants(apiUrl('/api/search?q=' + encodeURIComponent(q)));
+function filterByLocation() {
+    const location = document.getElementById('location-filter').value;
+    if (location === '') {
+        fetchRestaurants();
+    } else {
+        fetchRestaurants(apiUrl('/api/search?q=' + encodeURIComponent(location)));
+    }
 }
 
 function populateSelect(restaurants) {
@@ -319,6 +332,10 @@ function registerRestaurant(e) {
 }
 
 function viewMenu(restId, restName) {
+    // Set currentRestaurant when viewing a restaurant's menu
+    currentRestaurant = { id: restId, name: restName };
+    console.log('Selected restaurant:', currentRestaurant);
+    
     fetch(apiUrl('/api/menu?restId=' + restId))
         .then(r => r.json())
         .then(data => {
@@ -332,29 +349,77 @@ function viewMenu(restId, restName) {
                 const table = document.createElement('table');
                 table.style.width = '100%';
                 table.style.borderCollapse = 'collapse';
-                table.innerHTML = '<tr style="background: #f0f0f0; border-bottom: 1px solid #ccc;"><th style="padding: 10px; text-align: left;">Item & Description</th><th style="padding: 10px; text-align: right;">Price</th><th style="padding: 10px; text-align: right;">Qty</th><th style="padding: 10px; text-align: center;">Action</th></tr>';
+                table.innerHTML = '<tr style="background: #f0f0f0; border-bottom: 1px solid #ccc;"><th style="padding: 10px; text-align: left;">Item (Category)</th><th style="padding: 10px; text-align: right;">Price</th><th style="padding: 10px; text-align: center;">Quantity</th><th style="padding: 10px; text-align: center;">Action</th></tr>';
                 
                 data.forEach(item => {
                     const row = table.insertRow();
                     row.style.borderBottom = '1px solid #eee';
+                    
+                    // Item & Description column
                     const itemCell = row.insertCell();
-                    itemCell.innerHTML = `<strong>${item.name}</strong><br><small style="color: #666;">${item.description}</small>`;
+                    itemCell.innerHTML = `<strong>${item.name}</strong><br><small style="color: #666;">${item.description}</small><br><small style="color: #999;">${item.category}</small>`;
                     itemCell.style.padding = '10px';
                     
+                    // Price column
                     const priceCell = row.insertCell();
-                    priceCell.textContent = `Tk${item.price}`;
+                    priceCell.innerHTML = `<strong>Tk${item.price}</strong>`;
                     priceCell.style.padding = '10px';
                     priceCell.style.textAlign = 'right';
                     
+                    // Quantity input column
                     const qtyCell = row.insertCell();
-                    qtyCell.textContent = item.quantity;
+                    const qtyInput = document.createElement('input');
+                    qtyInput.type = 'number';
+                    qtyInput.min = '1';
+                    qtyInput.max = '10';
+                    qtyInput.value = '1';
+                    qtyInput.style.width = '60px';
+                    qtyInput.style.padding = '5px';
+                    qtyCell.appendChild(qtyInput);
                     qtyCell.style.padding = '10px';
-                    qtyCell.style.textAlign = 'right';
+                    qtyCell.style.textAlign = 'center';
                     
+                    // Action column
                     const actionCell = row.insertCell();
-                    actionCell.innerHTML = `<button onclick="addToCart(${restId}, ${item.id}, ${item.price}, '${item.name}')" style="background: #3c90ff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Add</button>`;
                     actionCell.style.padding = '10px';
                     actionCell.style.textAlign = 'center';
+                    
+                    // If pizza, add size selector
+                    if (item.hasSizes) {
+                        const sizeSelect = document.createElement('select');
+                        sizeSelect.style.marginRight = '5px';
+                        sizeSelect.style.padding = '5px';
+                        const sizes = item.sizes.split('|');
+                        sizes.forEach(size => {
+                            const option = document.createElement('option');
+                            option.value = size;
+                            option.textContent = size;
+                            sizeSelect.appendChild(option);
+                        });
+                        actionCell.appendChild(sizeSelect);
+                        
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Add';
+                        btn.style.background = '#3c90ff';
+                        btn.style.color = 'white';
+                        btn.style.border = 'none';
+                        btn.style.padding = '5px 10px';
+                        btn.style.borderRadius = '3px';
+                        btn.style.cursor = 'pointer';
+                        btn.onclick = () => addToCart(restId, item.id, item.price, item.name, parseInt(qtyInput.value), sizeSelect.value);
+                        actionCell.appendChild(btn);
+                    } else {
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Add';
+                        btn.style.background = '#3c90ff';
+                        btn.style.color = 'white';
+                        btn.style.border = 'none';
+                        btn.style.padding = '5px 10px';
+                        btn.style.borderRadius = '3px';
+                        btn.style.cursor = 'pointer';
+                        btn.onclick = () => addToCart(restId, item.id, item.price, item.name, parseInt(qtyInput.value), null);
+                        actionCell.appendChild(btn);
+                    }
                 });
                 container.appendChild(table);
             }
@@ -368,27 +433,48 @@ function closeMenuModal() {
     document.getElementById('menu-modal').style.display = 'none';
 }
 
-function addToCart(restId, menuId, price, name) {
+function addToCart(restId, menuId, basePrice, name, quantity, size) {
+    // Ensure currentRestaurant is set
+    if (!currentRestaurant || currentRestaurant.id !== restId) {
+        // Fallback: set from cart or parameter
+        currentRestaurant = { id: restId };
+    }
+    
     if (cart.length > 0 && cart[0].restId !== restId) {
         alert('You can only order from one restaurant at a time. Please clear the cart first.');
         return;
     }
 
-    const item = cart.find(i => i.menuId === menuId);
-    if (!item) {
-        cart.push({ restId, menuId, quantity: 1, price, name });
-    } else {
-        item.quantity += 1;
+    quantity = quantity || 1;
+    
+    // Calculate price based on size
+    let price = basePrice;
+    if (size) {
+        if (size === 'Medium') price = basePrice + 50; // +50 for medium
+        else if (size === 'Large') price = basePrice + 100; // +100 for large
     }
-    alert('Added to cart!');
+    
+    // Create unique key for tracking item variants (same item with different sizes)
+    const itemKey = `${menuId}_${size || 'standard'}`;
+    
+    const item = cart.find(i => i.menuId === menuId && i.size === (size || null));
+    if (!item) {
+        cart.push({ restId, menuId, quantity, price, name, size: size || null });
+    } else {
+        item.quantity += quantity;
+    }
+    alert(`Added ${quantity}x ${name}${size ? ' (' + size + ')' : ''} to cart!`);
     updateCartDisplay();
 }
 
 function updateCartDisplay() {
     const totalItems = cart.reduce((sum, i) => sum + i.quantity, 0);
-    const totalCost = cart.reduce((sum, i) => sum + i.quantity * i.price, 0).toFixed(2);
+    const subtotal = cart.reduce((sum, i) => sum + i.quantity * i.price, 0);
+    const finalTotal = (subtotal - currentDiscount).toFixed(2);
     
     const cartItemsDiv = document.getElementById('cart-items');
+    const cartSubtotalDiv = document.getElementById('cart-subtotal');
+    const cartDiscountDiv = document.getElementById('cart-discount');
     const cartTotalDiv = document.getElementById('cart-total');
     
     if (!cartItemsDiv) return;
@@ -396,92 +482,137 @@ function updateCartDisplay() {
     if (cart.length === 0) {
         cartItemsDiv.innerHTML = '<p>Your cart is empty.</p>';
         if (cartTotalDiv) cartTotalDiv.textContent = 'Tk 0.00';
+        if (cartSubtotalDiv) cartSubtotalDiv.textContent = 'Tk 0.00';
+        if (cartDiscountDiv) cartDiscountDiv.textContent = '- Tk 0.00';
         return;
     }
 
     let html = '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
     html += '<tr style="background: #f0f0f0;"><th style="padding: 10px; text-align: left;">Item</th><th style="padding: 10px; text-align: center;">Qty</th><th style="padding: 10px; text-align: right;">Price</th><th style="padding: 10px; text-align: right;">Total</th><th style="padding: 10px; text-align: center;">Actions</th></tr>';
 
-    cart.forEach(item => {
+    cart.forEach((item, index) => {
         html += `<tr style="border-bottom: 1px solid #eee;">`;
-        html += `<td style="padding: 10px;">${item.name}</td>`;
+        html += `<td style="padding: 10px;">${item.name}${item.size ? ' (' + item.size + ')' : ''}</td>`;
         html += `<td style="padding: 10px; text-align: center;">${item.quantity}</td>`;
         html += `<td style="padding: 10px; text-align: right;">Tk ${item.price.toFixed(2)}</td>`;
         html += `<td style="padding: 10px; text-align: right;">Tk ${(item.quantity * item.price).toFixed(2)}</td>`;
         html += `<td style="padding: 10px; text-align: center;">`;
-        html += `<button onclick="changeQuantity(${item.menuId}, -1)" style="margin-right: 5px; padding: 5px 10px;">-</button>`;
-        html += `<button onclick="changeQuantity(${item.menuId}, 1)" style="margin-right: 5px; padding: 5px 10px;">+</button>`;
-        html += `<button onclick="removeFromCart(${item.menuId})" style="background: #ff6b6b; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer;">Remove</button>`;
+        html += `<button onclick="changeQuantity(${index}, -1)" style="margin-right: 5px; padding: 5px 10px;">-</button>`;
+        html += `<button onclick="changeQuantity(${index}, 1)" style="margin-right: 5px; padding: 5px 10px;">+</button>`;
+        html += `<button onclick="removeFromCart(${index})" style="background: #ff6b6b; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer;">Remove</button>`;
         html += `</td>`;
         html += `</tr>`;
     });
     html += '</table>';
 
     cartItemsDiv.innerHTML = html;
-    if (cartTotalDiv) cartTotalDiv.textContent = 'Tk ' + totalCost;
+    if (cartSubtotalDiv) cartSubtotalDiv.textContent = 'Tk ' + subtotal.toFixed(2);
+    if (cartDiscountDiv) cartDiscountDiv.textContent = '- Tk ' + currentDiscount.toFixed(2);
+    if (cartTotalDiv) cartTotalDiv.textContent = 'Tk ' + finalTotal;
 }
 
-function removeFromCart(menuId) {
-    cart = cart.filter(i => i.menuId !== menuId);
+function removeFromCart(index) {
+    cart.splice(index, 1);
     updateCartDisplay();
 }
 
-function changeQuantity(menuId, delta) {
-    const item = cart.find(i => i.menuId === menuId);
+function changeQuantity(index, delta) {
+    const item = cart[index];
     if (!item) return;
     item.quantity += delta;
     if (item.quantity <= 0) {
-        cart = cart.filter(i => i.menuId !== menuId);
+        cart.splice(index, 1);
     }
     updateCartDisplay();
 }
 
 function clearCart() {
     cart = [];
+    currentDiscount = 0;
+    appliedCoupon = null;
     updateCartDisplay();
 }
 
 function checkoutOrder() {
     if (cart.length === 0) {
-        alert('Cart is empty. Add items first!');
+        alert('Your cart is empty!');
         return;
     }
-    if (!currentUser) {
-        alert('Please login first as a user to place order.');
-        return;
-    }
-    const userId = currentUser.id;
-    const restId = cart[0].restId;
-    const items = cart.map(i => `${i.menuId}:${i.quantity}`).join(';');
-    
-    console.log('Placing order:', { userId, restId, items, cart });
-    const requestBody = `userId=${encodeURIComponent(userId)}&restId=${encodeURIComponent(restId)}&items=${encodeURIComponent(items)}`;
-    console.log('Request body:', requestBody);
 
-    fetch(apiUrl('/api/place-order'), {
+    if (!currentUser) {
+        alert('Please login first');
+        return;
+    }
+
+    if (!currentRestaurant) {
+        alert('No restaurant selected');
+        return;
+    }
+
+    const paymentMethodRadio = document.querySelector('input[name="payment-method"]:checked');
+    if (!paymentMethodRadio) {
+        alert('Please select a payment method');
+        return;
+    }
+
+    const paymentMethod = paymentMethodRadio.value;
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const finalTotal = subtotal - currentDiscount;
+
+    console.log('Processing payment:', { paymentMethod, subtotal, currentDiscount, finalTotal, restaurantId: currentRestaurant.id });
+
+    // Prepare cart items as JSON
+    const cartItems = cart.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+    }));
+
+    // Process payment
+    const data = new URLSearchParams();
+    data.append('userId', currentUser.id);
+    data.append('restaurantId', currentRestaurant.id);
+    data.append('paymentMethod', paymentMethod);
+    data.append('subtotal', subtotal);
+    data.append('discount', currentDiscount);
+    data.append('amount', finalTotal);
+    data.append('coupon', appliedCoupon || '');
+    data.append('cartItems', JSON.stringify(cartItems));
+
+    console.log('Sending data:', data.toString());
+
+    fetch(apiUrl('/api/payment'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: requestBody
+        body: data.toString()
     })
     .then(r => {
         console.log('Response status:', r.status);
+        if (!r.ok) {
+            return r.text().then(text => {
+                console.error('Server error response:', text);
+                throw new Error(`Server error (${r.status}): ${text}`);
+            });
+        }
         return r.json();
     })
-    .then(res => {
-        console.log('Order response:', res);
-        if (res.message) {
-            alert('Order placed successfully!');
-            cart = [];
-            updateCartDisplay();
-            fetchRestaurants();
+    .then(payment => {
+        console.log('Payment response:', payment);
+        if (payment.status === 'COMPLETED' || payment.orderId) {
+            alert(`✓ Order placed successfully!\nOrder ID: ${payment.orderId}\nPayment Method: ${paymentMethod}\nAmount: Tk ${finalTotal.toFixed(2)}\nTransaction ID: ${payment.transactionId}`);
+            clearCart();
+            document.getElementById('coupon-input').value = '';
+            document.getElementById('coupon-input').disabled = false;
+            document.getElementById('coupon-message').innerHTML = '';
             goToPage('main-app');
         } else {
-            alert('Error: ' + (res.error || 'Order failed'));
+            alert('✗ Payment failed. Status: ' + payment.status);
         }
     })
     .catch(err => {
-        console.error('Order error:', err);
-        alert('Error: ' + err);
+        console.error('Payment error:', err);
+        alert('Error processing payment:\n' + err.message);
     });
 }
 
@@ -736,5 +867,339 @@ function deleteRestaurantMenuItem(menuId) {
             })
             .catch(err => alert('Error: ' + err));
     }
+}
+
+// NEW FUNCTIONS FOR COUPONS, PAYMENT, AND ORDER TRACKING
+
+let currentDiscount = 0;
+let appliedCoupon = null;
+
+function toggleAvailableCoupons() {
+    const couponDiv = document.getElementById('available-coupons');
+    if (couponDiv.style.display === 'none') {
+        couponDiv.style.display = 'block';
+        loadAvailableCoupons();
+    } else {
+        couponDiv.style.display = 'none';
+    }
+}
+
+function loadAvailableCoupons() {
+    if (!currentRestaurant) {
+        alert('Please select a restaurant first');
+        return;
+    }
+    
+    const restId = currentRestaurant.id;
+    console.log('Loading coupons for restaurant:', restId);
+    fetch(apiUrl('/api/coupons?restaurant_id=' + restId))
+        .then(r => {
+            console.log('Coupon response status:', r.status);
+            if (!r.ok) {
+                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            return r.json();
+        })
+        .then(coupons => {
+            console.log('Coupons loaded:', coupons);
+            const container = document.getElementById('coupons-list');
+            if (!coupons || coupons.length === 0) {
+                container.innerHTML = '<p style="color: #666;">No coupons available for this restaurant</p>';
+                return;
+            }
+
+            let html = '';
+            coupons.forEach(coupon => {
+                let discountText = coupon.discountType === 'percentage' 
+                    ? coupon.discountValue + '% off' 
+                    : 'Tk ' + coupon.discountValue + ' off';
+                
+                html += `<div style="background: white; padding: 10px; border-radius: 4px; border: 2px solid #FF4757; cursor: pointer; text-align: center;" onclick="applyCouponFromList('${coupon.code}')">`;
+                html += `<div style="font-weight: bold; color: #FF4757; font-size: 14px;">${coupon.code}</div>`;
+                html += `<div style="font-size: 12px; color: #666;">${discountText}</div>`;
+                if (coupon.minOrder > 0) {
+                    html += `<div style="font-size: 11px; color: #999;">Min: Tk ${coupon.minOrder}</div>`;
+                }
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error loading coupons:', err);
+            document.getElementById('coupons-list').innerHTML = `<p style="color: red;">Error loading coupons: ${err.message}</p>`;
+        });
+}
+
+function applyCouponFromList(code) {
+    document.getElementById('coupon-input').value = code;
+    applyCoupon();
+}
+
+function applyCoupon() {
+    const couponCode = document.getElementById('coupon-input').value.trim();
+    if (!couponCode) {
+        alert('Please enter a coupon code');
+        return;
+    }
+
+    if (!currentUser) {
+        alert('Please login first');
+        return;
+    }
+
+    if (!currentRestaurant) {
+        alert('Please select a restaurant first');
+        return;
+    }
+
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    console.log('Validating coupon:', couponCode, 'for restaurant:', currentRestaurant.id, 'user:', currentUser.id, 'month:', currentMonth);
+
+    const data = new URLSearchParams();
+    data.append('code', couponCode);
+    data.append('total', subtotal);
+    data.append('restaurantId', currentRestaurant.id);
+    data.append('userId', currentUser.id);
+    data.append('monthYear', currentMonth);
+
+    fetch(apiUrl('/api/validate-coupon'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: data
+    })
+    .then(r => {
+        console.log('Coupon validation response status:', r.status);
+        if (!r.ok) {
+            throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        }
+        return r.json();
+    })
+    .then(res => {
+        console.log('Coupon response:', res);
+        const messageDiv = document.getElementById('coupon-message');
+        if (res.valid) {
+            currentDiscount = res.discount;
+            appliedCoupon = res.code;
+            messageDiv.innerHTML = `<span style="color: green;">✓ Coupon applied! Discount: Tk ${res.discount.toFixed(2)}</span>`;
+            document.getElementById('coupon-input').disabled = true;
+            updateCartDisplay();
+        } else {
+            messageDiv.innerHTML = `<span style="color: red;">✗ ${res.message}</span>`;
+            currentDiscount = 0;
+            appliedCoupon = null;
+        }
+    })
+    .catch(err => {
+        console.error('Coupon validation error:', err);
+        document.getElementById('coupon-message').innerHTML = `<span style="color: red;">Error: ${err.message}</span>`;
+    });
+}
+
+function searchMenuItems() {
+    const searchTerm = document.getElementById('menu-search-input').value.trim();
+    if (!searchTerm) {
+        alert('Please enter a search term');
+        return;
+    }
+
+    fetch(apiUrl('/api/search-menu?q=' + encodeURIComponent(searchTerm)))
+        .then(r => r.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('menu-search-results');
+            if (data.length === 0) {
+                resultsDiv.innerHTML = '<p style="text-align: center; color: #999;">No dishes found</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">';
+            data.forEach(item => {
+                html += `<div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">`;
+                html += `<h4>${item.name}</h4>`;
+                html += `<p style="color: #666; font-size: 14px;">Restaurant ID: ${item.restaurantId}</p>`;
+                html += `<p style="font-size: 18px; color: #FF4757; margin: 10px 0;"><strong>Tk ${item.price.toFixed(2)}</strong></p>`;
+                html += `<button onclick="addToCart(${item.id}, '${item.name}', ${item.price})" class="btn-primary" style="width: 100%; padding: 8px;">Add to Cart</button>`;
+                html += `</div>`;
+            });
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        })
+        .catch(err => {
+            document.getElementById('menu-search-results').innerHTML = '<p style="color: red;">Error searching menu</p>';
+        });
+}
+
+let orderRefreshInterval; // Global interval for auto-refresh
+let restaurantCache = {}; // Cache restaurant data
+
+function loadUserOrders() {
+    if (!currentUser) {
+        alert('Please login first');
+        return;
+    }
+
+    goToPage('order-tracking');
+    
+    // Load restaurants first, then orders
+    fetch(apiUrl('/api/restaurants'))
+        .then(r => r.json())
+        .then(restaurants => {
+            // Build restaurant map
+            restaurantCache = {};
+            restaurants.forEach(rest => {
+                restaurantCache[rest.id] = rest.name;
+            });
+            console.log('Restaurant cache loaded:', restaurantCache);
+            
+            // Now load orders
+            refreshUserOrders();
+            
+            // Auto-refresh every 5 seconds
+            if (orderRefreshInterval) {
+                clearInterval(orderRefreshInterval);
+            }
+            orderRefreshInterval = setInterval(refreshUserOrders, 5000);
+        })
+        .catch(err => {
+            console.error('Error loading restaurants:', err);
+            // Still proceed with orders even if restaurants fail
+            refreshUserOrders();
+            if (orderRefreshInterval) {
+                clearInterval(orderRefreshInterval);
+            }
+            orderRefreshInterval = setInterval(refreshUserOrders, 5000);
+        });
+}
+
+function refreshUserOrders() {
+    console.log('Refreshing orders for user:', currentUser.id);
+    fetch(apiUrl('/api/user-orders?user_id=' + currentUser.id))
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            }
+            return r.json();
+        })
+        .then(orders => {
+            console.log('Orders loaded:', orders);
+            displayOrdersTable(orders, restaurantCache);
+        })
+        .catch(err => {
+            console.error('Error loading orders:', err);
+            document.getElementById('orders-list').innerHTML = `<p style="color: red;">Error: ${err.message}</p>`;
+        });
+}
+
+function displayOrdersTable(orders, restaurantMap) {
+    const container = document.getElementById('orders-list');
+    if (!orders || orders.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999;">No orders yet</p>';
+        return;
+    }
+    
+    let html = '<table style="width: 100%; border-collapse: collapse;">';
+    html += '<tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;"><th style="padding: 12px; text-align: left;">Order ID</th><th style="padding: 12px; text-align: left;">Restaurant</th><th style="padding: 12px; text-align: left;">Status</th><th style="padding: 12px; text-align: left;">Payment</th><th style="padding: 12px; text-align: right;">Amount</th><th style="padding: 12px; text-align: center;">ETA (min)</th></tr>';
+
+    orders.forEach(order => {
+        let statusColor = '#666';
+        if (order.status === 'DELIVERED') statusColor = '#4CAF50';
+        if (order.status === 'OUT_FOR_DELIVERY') statusColor = '#FF9800';
+        if (order.status === 'PREPARING') statusColor = '#2196F3';
+        if (order.status === 'PENDING') statusColor = '#FFC107';
+        if (order.status === 'READY') statusColor = '#9C27B0';
+        
+        let restaurantName = restaurantMap[order.restaurantId] || 'Unknown';
+        console.log('Order', order.orderId, 'restaurantId:', order.restaurantId, 'name:', restaurantName, 'map:', restaurantMap);
+
+        html += `<tr style="border-bottom: 1px solid #eee;">`;
+        html += `<td style="padding: 12px;">#${order.orderId}</td>`;
+        html += `<td style="padding: 12px;">${restaurantName}</td>`;
+        html += `<td style="padding: 12px; color: ${statusColor}; font-weight: bold;">${order.status}</td>`;
+        html += `<td style="padding: 12px;">${order.paymentStatus}</td>`;
+        html += `<td style="padding: 12px; text-align: right;">Tk ${order.total.toFixed(2)}</td>`;
+        html += `<td style="padding: 12px; text-align: center;">${order.deliveryTime || '-'} min</td>`;
+        html += `</tr>`;
+    });
+    html += '</table>';
+    container.innerHTML = html;
+}
+
+// USER PROFILE FUNCTIONS
+
+function loadUserProfile() {
+    if (!currentUser) {
+        alert('Please login first');
+        return;
+    }
+    
+    console.log('Loading profile for user:', currentUser.id);
+    
+    // Pre-fill the form with current user data
+    document.getElementById('profile-name').value = currentUser.name || '';
+    document.getElementById('profile-email').value = currentUser.email || '';
+    document.getElementById('profile-address').value = currentUser.address || '';
+}
+
+function updateProfile(e) {
+    e.preventDefault();
+    
+    if (!currentUser) {
+        alert('Please login first');
+        return;
+    }
+    
+    const name = document.getElementById('profile-name').value.trim();
+    const email = document.getElementById('profile-email').value.trim();
+    const address = document.getElementById('profile-address').value.trim();
+    
+    if (!name || !email || !address) {
+        alert('All fields are required');
+        return;
+    }
+    
+    console.log('Updating profile:', { userId: currentUser.id, name, email, address });
+    
+    const data = new URLSearchParams();
+    data.append('userId', currentUser.id);
+    data.append('name', name);
+    data.append('email', email);
+    data.append('address', address);
+    
+    fetch(apiUrl('/api/update-profile'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: data
+    })
+    .then(r => {
+        if (!r.ok) {
+            throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+        }
+        return r.json();
+    })
+    .then(res => {
+        console.log('Profile update response:', res);
+        if (res.success || res.message) {
+            alert('✓ Profile updated successfully!');
+            
+            // Update currentUser object
+            currentUser.name = name;
+            currentUser.email = email;
+            currentUser.address = address;
+            
+            // Update display
+            document.getElementById('current-user-name').textContent = 'Welcome, ' + name + '!';
+            document.getElementById('profile-message').innerHTML = '<span style="color: green;">✓ Profile saved successfully</span>';
+            
+            setTimeout(() => {
+                document.getElementById('profile-message').innerHTML = '';
+            }, 3000);
+        } else {
+            alert('Error updating profile: ' + (res.error || 'Unknown error'));
+        }
+    })
+    .catch(err => {
+        console.error('Profile update error:', err);
+        alert('Error updating profile:\n' + err.message);
+    });
 }
 

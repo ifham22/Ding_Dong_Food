@@ -10,21 +10,25 @@ public class SearchRestaurants {
             String line = br.readLine(); // header
             while ((line = br.readLine()) != null) {
                 String[] values = line.split(",");
-                if (values.length >= 6 && values[5].equals("1")) { // only open restaurants
-                    String name = values[1].toLowerCase();
-                    String address = values[2].toLowerCase();
-                    String cuisine = values[3].toLowerCase();
-                    if (name.contains(query.toLowerCase()) || address.contains(query.toLowerCase()) || cuisine.contains(query.toLowerCase())) {
+                if (values.length >= 7 && values[6].trim().equals("1")) { // check open status
+                    String name = values[1].toLowerCase().trim();
+                    String address = values[2].toLowerCase().trim();
+                    String cuisine = values[3].toLowerCase().trim();
+                    String queryLower = query.toLowerCase().trim();
+                    
+                    // Match by location (address)
+                    if (address.contains(queryLower)) {
                         results.add(values[1]); // return name
                     }
                 }
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
         return results;
     }
 
     public List<String> searchNearest(String location) {
-        // For simplicity, return all open restaurants if location matches partially
         return searchByCriteria(location);
     }
 }

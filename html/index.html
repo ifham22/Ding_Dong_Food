@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Foodie Express</title>
+    <title>DingDong Food</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <nav class="navbar">
-        <div class="logo">🍕 Foodie Express</div>
+        <div class="logo">&#127791; DingDong Food</div>
     </nav>
 
     <!-- PAGE 1: LANDING PAGE -->
     <div id="landing-page" class="page" style="display: block;">
         <div class="page-container">
             <div class="content-center">
-                <h1>Welcome to Foodie Express</h1>
+                <h1>Welcome to DingDong Food</h1>
                 <p>Order delicious food from your favorite restaurants</p>
                 <div class="button-group" style="margin-top: 40px;">
                     <button class="btn-primary" onclick="goToPage('user-choice')">User</button>
@@ -109,30 +109,35 @@
     <!-- PAGE 5: MAIN APP (Restaurants & Checkout) -->
     <div id="main-app" class="page" style="display: none;">
         <div class="page-header">
-            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; flex-wrap: wrap;">
                 <button class="btn-back" onclick="logoutUser()">← Logout</button>
-                <div id="user-status" style="text-align: center; flex: 1;">
+                <div id="user-status" style="text-align: center; flex: 1; min-width: 150px;">
                     <strong id="current-user-name"></strong>
                 </div>
+                <button class="btn-back" onclick="goToPage('menu-search')" style="padding: 8px 15px; background: #4CAF50; color: white;">🔍 Search Dishes</button>
+                <button class="btn-back" onclick="loadUserOrders()" style="padding: 8px 15px; background: #2196F3; color: white;">📦 Track Orders</button>
+                <button class="btn-back" onclick="goToPage('user-profile')" style="padding: 8px 15px; background: #9C27B0; color: white;">👤 My Profile</button>
                 <button class="btn-back" onclick="goToPage('checkout')" style="padding: 8px 15px; background: var(--primary); color: white;">🛒 Checkout</button>
             </div>
         </div>
 
         <div class="page-container">
-            <header class="hero">
-                <div class="hero-content">
-                    <h1>Craving Something Delicious?</h1>
-                    <p>Order from the best local restaurants</p>
-                    <button class="btn-primary hero-btn" onclick="fetchRestaurants()">Refresh Restaurants</button>
-                    <div class="search-section">
-                        <input type="text" id="search-input" placeholder="Search restaurants...">
-                        <button onclick="searchRestaurants()">Search</button>
-                    </div>
-                </div>
-            </header>
-
             <main class="container">
-                <h2 class="section-title">Top Restaurants (<span id="status">Loading...</span>)</h2>
+                <h1 style="text-align: center; margin-bottom: 10px;">Craving Something Delicious?</h1>
+                <p style="text-align: center; margin-bottom: 20px; color: var(--text);">Order from the best local restaurants</p>
+                
+                <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <select id="location-filter" onchange="filterByLocation()" style="padding: 10px 15px; font-size: 14px; border-radius: 4px; border: 1px solid var(--border); min-width: 200px;">
+                        <option value="">All Locations</option>
+                        <option value="Gulshan">Gulshan</option>
+                        <option value="Banani">Banani</option>
+                        <option value="Pallabi">Pallabi</option>
+                        <option value="IUT">IUT</option>
+                    </select>
+                    <button class="btn-primary" onclick="fetchRestaurants()" style="padding: 10px 20px;">Refresh</button>
+                </div>
+
+                <h2 class="section-title" style="text-align: center;">Restaurants (<span id="status">Loading...</span>)</h2>
                 <div class="restaurant-grid" id="restaurant-container">
                     <!-- Restaurants will be injected here -->
                 </div>
@@ -268,11 +273,107 @@
                 <div id="cart-items" style="margin: 20px 0; padding: 20px; background: #f9f9f9; border-radius: 5px; min-height: 100px;">
                     Your cart is empty.
                 </div>
-                <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 5px;">
-                    <p><strong>Total: <span id="cart-total">Tk 0.00</span></strong></p>
+
+                <!-- Coupon Section -->
+                <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                    <h4>🎟️ Apply Coupon Code</h4>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="coupon-input" placeholder="Enter coupon code (e.g., WELCOME10)" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <button class="btn-primary" onclick="applyCoupon()" style="padding: 8px 15px;">Apply</button>
+                        <button class="btn-secondary" onclick="toggleAvailableCoupons()" style="padding: 8px 15px; background: #17a2b8;">View Coupons</button>
+                    </div>
+                    <div id="coupon-message" style="margin-top: 10px; font-size: 14px;"></div>
+                    <div id="available-coupons" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                        <p style="font-weight: bold; margin-bottom: 8px;">Available Coupons:</p>
+                        <div id="coupons-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+                            <!-- Coupons will be loaded here -->
+                        </div>
+                    </div>
                 </div>
-                <button class="btn-primary" style="width: 100%; margin-top: 20px; padding: 12px;" onclick="checkoutOrder()">Place Order</button>
+
+                <!-- Price Breakdown -->
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 5px;">
+                    <p><strong>Subtotal: <span id="cart-subtotal">Tk 0.00</span></strong></p>
+                    <p><strong> Discount: <span id="cart-discount" style="color: green;">- Tk 0.00</span></strong></p>
+                    <p style="font-size: 18px; color: #FF4757;"><strong>Total: <span id="cart-total">Tk 0.00</span></strong></p>
+                </div>
+
+                <!-- Payment Method Selection -->
+                <div style="margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 5px;">
+                    <h4>Select Payment Method</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <label><input type="radio" name="payment-method" value="Cash" checked> 💵 Cash on Delivery</label>
+                        <label><input type="radio" name="payment-method" value="Card"> 💳 Credit/Debit Card</label>
+                        <label><input type="radio" name="payment-method" value="bKash"> 📱 bKash</label>
+                        <label><input type="radio" name="payment-method" value="Nagad"> 📱 Nagad</label>
+                    </div>
+                </div>
+
+                <button class="btn-primary" style="width: 100%; margin-top: 20px; padding: 12px; font-size: 16px;" onclick="checkoutOrder()">🛒 Place Order</button>
                 <button class="btn-secondary" style="width: 100%; margin-top: 10px; padding: 12px;" onclick="clearCart()">Clear Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 8: ORDER TRACKING -->
+    <div id="order-tracking" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goToPage('main-app')">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="checkout-container">
+                <h2>Track Your Orders</h2>
+                <button class="btn-primary" onclick="refreshUserOrders()" style="margin-bottom: 15px; background: #4CAF50;">🔄 Refresh Now</button>
+                <div id="orders-list" style="margin: 20px 0;">
+                    <p>Loading your orders...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 9: MENU SEARCH -->
+    <div id="menu-search" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goToPage('main-app')">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="checkout-container">
+                <h2>Search Dishes</h2>
+                <div style="margin: 20px 0;">
+                    <input type="text" id="menu-search-input" placeholder="Search for dishes..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 16px;">
+                    <button class="btn-primary" onclick="searchMenuItems()" style="width: 100%; margin-top: 10px; padding: 12px;">Search</button>
+                </div>
+                <div id="menu-search-results" style="margin-top: 20px;">
+                    <!-- Search results will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 10: USER PROFILE -->
+    <div id="user-profile" class="page" style="display: none;">
+        <div class="page-header">
+            <button class="btn-back" onclick="goToPage('main-app')">← Back</button>
+        </div>
+        <div class="page-container">
+            <div class="checkout-container">
+                <h2>My Profile</h2>
+                <form id="profile-form" onsubmit="updateProfile(event)" style="max-width: 500px; margin: 20px auto;">
+                    <div style="margin-bottom: 15px;">
+                        <label for="profile-name" style="display: block; margin-bottom: 5px; font-weight: bold;">Full Name:</label>
+                        <input type="text" id="profile-name" placeholder="Enter your full name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label for="profile-email" style="display: block; margin-bottom: 5px; font-weight: bold;">Email:</label>
+                        <input type="email" id="profile-email" placeholder="Enter your email" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label for="profile-address" style="display: block; margin-bottom: 5px; font-weight: bold;">Delivery Address:</label>
+                        <textarea id="profile-address" placeholder="Enter your delivery address" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 14px; min-height: 80px; font-family: Arial, sans-serif;"></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-size: 16px;">💾 Save Profile</button>
+                </form>
+                <div id="profile-message" style="margin-top: 15px; text-align: center; font-size: 14px;"></div>
             </div>
         </div>
     </div>
@@ -289,7 +390,7 @@
     </div>
 
     <footer class="footer">
-        <p>&copy; 2026 Foodie Express. Pure Java HttpServer, Vanilla JS & CSV.</p>
+        <p>&copy; 2026 DingDong Food. Pure Java HttpServer, Vanilla JS & CSV.</p>
     </footer>
 
     <script src="script.js"></script>

@@ -47,9 +47,16 @@ public class MainServer {
         server.createContext("/api/delete-menu", new ApiDeleteMenuHandler());
         server.createContext("/api/register-user", new ApiRegisterUserHandler());
         server.createContext("/api/login", new ApiLoginHandler());
+        server.createContext("/api/update-profile", new ApiUpdateProfileHandler());
         server.createContext("/api/users", new ApiUsersHandler());
         server.createContext("/api/place-order", new ApiPlaceOrderHandler());
         server.createContext("/api/schedule-order", new ApiScheduleOrderHandler());
+        server.createContext("/api/coupons", new ApiCouponsHandler());
+        server.createContext("/api/validate-coupon", new ApiValidateCouponHandler());
+        server.createContext("/api/order-status", new ApiOrderStatusHandler());
+        server.createContext("/api/user-orders", new ApiUserOrdersHandler());
+        server.createContext("/api/payment", new ApiPaymentHandler());
+        server.createContext("/api/search-menu", new ApiSearchMenuHandler());
 
         // Static File Server
         server.createContext("/", new StaticFileHandler());
@@ -126,6 +133,57 @@ public class MainServer {
 
     static class ApiMenuHandler implements HttpHandler {
 
+        private double getPricingMultiplier(String location) {
+            if (location == null) return 1.0;
+            location = location.toLowerCase().trim();
+            switch (location) {
+                case "iut":
+                    return 0.8; // Student-friendly (20% discount)
+                case "pallabi":
+                    return 1.0; // Standard
+                case "banani":
+                case "gulshan":
+                    return 1.3; // High-class (30% premium)
+                default:
+                    return 1.0;
+            }
+        }
+
+        private String getRestaurantLocation(int restId) {
+            try (BufferedReader br = new BufferedReader(new FileReader("database/restaurants.csv"))) {
+                String line = br.readLine(); // header
+                while ((line = br.readLine()) != null) {
+                    String[] parts = line.split(",");
+                    if (parts.length >= 3 && Integer.parseInt(parts[0]) == restId) {
+                        return parts[2]; // address field
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        private String[] parseCSVLine(String line) {
+            java.util.List<String> fields = new java.util.ArrayList<>();
+            StringBuilder current = new StringBuilder();
+            boolean inQuotes = false;
+            
+            for (int i = 0; i < line.length(); i++) {
+                char c = line.charAt(i);
+                if (c == '"') {
+                    inQuotes = !inQuotes;
+                } else if (c == ',' && !inQuotes) {
+                    fields.add(current.toString());
+                    current = new StringBuilder();
+                } else {
+                    current.append(c);
+                }
+            }
+            fields.add(current.toString());
+            return fields.toArray(new String[0]);
+        }
+
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             addCorsHeaders(exchange);
@@ -140,30 +198,49 @@ public class MainServer {
                     return;
                 }
                 int restId = Integer.parseInt(query.split("restId=")[1].split("&")[0]);
+                
+                // Get restaurant location for pricing
+                String location = getRestaurantLocation(restId);
+                double multiplier = getPricingMultiplier(location);
+                
                 StringBuilder json = new StringBuilder("[");
                 try (BufferedReader br = new BufferedReader(new FileReader("database/menu.csv"))) {
                     String line = br.readLine(); // header
                     boolean first = true;
                     while ((line = br.readLine()) != null) {
-                        String[] values = line.split(",");
-                        if (values.length < 6 || !values[1].equals(String.valueOf(restId))) {
+                        String[] values = parseCSVLine(line);
+                        if (values.length < 8 || !values[1].equals(String.valueOf(restId))) {
                             continue;
                         }
 
                         if (!first) {
                             json.append(",");
                         }
+                        
+                        // Parse base price and apply location multiplier
+                        double basePrice = Double.parseDouble(values[5].trim());
+                        double adjustedPrice = Math.round(basePrice * multiplier * 100.0) / 100.0;
+                        
                         json.append("{");
-                        json.append("\"id\":").append(values[0]).append(",");
-                        json.append("\"name\":\"").append(escapeJson(values[2])).append("\",");
-                        json.append("\"description\":\"").append(escapeJson(values[3])).append("\",");
-                        json.append("\"price\":").append(values[4]).append(",");
-                        json.append("\"quantity\":").append(values[5]);
+                        json.append("\"id\":").append(values[0].trim()).append(",");
+                        json.append("\"name\":\"").append(escapeJson(values[2].trim())).append("\",");
+                        json.append("\"description\":\"").append(escapeJson(values[3].trim())).append("\",");
+                        json.append("\"category\":\"").append(escapeJson(values[4].trim())).append("\",");
+                        json.append("\"price\":").append(adjustedPrice).append(",");
+                        json.append("\"basePrice\":").append(basePrice).append(",");
+                        String sizes = values[7].trim();
+                        json.append("\"hasSizes\":").append(!"-".equals(sizes) ? "true" : "false").append(",");
+                        if (!"-".equals(sizes)) {
+                            json.append("\"sizes\":\"").append(escapeJson(sizes)).append("\"");
+                        } else {
+                            json.append("\"sizes\":null");
+                        }
                         json.append("}");
                         first = false;
                     }
                 } catch (Exception e) {
-                    sendResponse(exchange, 500, "{\"error\":\"CSV error\"}");
+                    e.printStackTrace();
+                    sendResponse(exchange, 500, "{\"error\":\"CSV error: " + e.getMessage() + "\"}");
                     return;
                 }
                 json.append("]");
@@ -274,7 +351,7 @@ public class MainServer {
                     boolean first = true;
                     while ((line = br.readLine()) != null) {
                         String[] values = line.split(",");
-                        if (values.length >= 6 && values[5].equals("1") && results.contains(values[1])) {
+                        if (values.length >= 7 && values[6].equals("1") && results.contains(values[1])) {
                             if (!first) {
                                 json.append(",");
                             }
@@ -640,6 +717,108 @@ public class MainServer {
         }
     }
 
+    static class ApiUpdateProfileHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try {
+                    String body = new String(exchange.getRequestBody().readAllBytes());
+                    int userId = 0;
+                    String name = "";
+                    String email = "";
+                    String address = "";
+                    
+                    // Parse parameters
+                    String[] params = body.split("&");
+                    for (String param : params) {
+                        if (param.contains("=")) {
+                            String[] kv = param.split("=", 2);
+                            String key = kv[0];
+                            String value = kv.length > 1 ? java.net.URLDecoder.decode(kv[1], "UTF-8") : "";
+                            
+                            if ("userId".equals(key)) userId = Integer.parseInt(value);
+                            else if ("name".equals(key)) name = value;
+                            else if ("email".equals(key)) email = value;
+                            else if ("address".equals(key)) address = value;
+                        }
+                    }
+                    
+                    System.out.println("Updating profile for user: " + userId + ", name: " + name + ", email: " + email + ", address: " + address);
+                    
+                    if (userId <= 0 || name.isEmpty() || email.isEmpty() || address.isEmpty()) {
+                        String json = "{\"success\":false,\"error\":\"All fields are required\"}";
+                        sendResponse(exchange, 400, json);
+                        return;
+                    }
+                    
+                    // Update user in CSV
+                    java.util.List<String> allLines = new java.util.ArrayList<>();
+                    boolean updated = false;
+                    
+                    try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader("database/users.csv"))) {
+                        String line = br.readLine(); // header
+                        if (line != null) allLines.add(line);
+                        
+                        while ((line = br.readLine()) != null) {
+                            String[] parts = line.split(",");
+                            if (parts.length >= 5 && Integer.parseInt(parts[0]) == userId) {
+                                // Update: id,name,email,address,password
+                                String updatedLine = parts[0] + "," + name + "," + email + "," + address + "," + parts[4];
+                                allLines.add(updatedLine);
+                                updated = true;
+                                System.out.println("Profile updated in CSV: " + updatedLine);
+                            } else {
+                                allLines.add(line);
+                            }
+                        }
+                    }
+                    
+                    // Write back
+                    if (updated) {
+                        try (java.io.FileWriter fw = new java.io.FileWriter("database/users.csv");
+                             java.io.BufferedWriter bw = new java.io.BufferedWriter(fw)) {
+                            for (String line : allLines) {
+                                bw.write(line);
+                                bw.newLine();
+                            }
+                            bw.flush();
+                        }
+                        String json = "{\"success\":true,\"message\":\"Profile updated successfully\"}";
+                        sendResponse(exchange, 200, json);
+                    } else {
+                        String json = "{\"success\":false,\"error\":\"User not found\"}";
+                        sendResponse(exchange, 404, json);
+                    }
+                    
+                } catch (Exception e) {
+                    System.err.println("Error updating profile: " + e.getMessage());
+                    e.printStackTrace();
+                    String json = "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}";
+                    sendResponse(exchange, 500, json);
+                }
+            }
+        }
+        
+        private String escapeJson(String input) {
+            if (input == null) return "";
+            return input.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            byte[] bytes = responseText.getBytes();
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+        }
+    }
+
     static class ApiUsersHandler implements HttpHandler {
 
         @Override
@@ -855,6 +1034,458 @@ public class MainServer {
                 os.write(response.getBytes());
                 os.close();
             }
+        }
+    }
+
+    // NEW HANDLERS FOR COUPONS, ORDERS, PAYMENT, AND SEARCH
+
+    static class ApiCouponsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery();
+                CouponManager cm = new CouponManager();
+                List<Coupon> coupons;
+                StringBuilder json = new StringBuilder("[");
+
+                if (query != null && query.contains("restaurant_id=")) {
+                    int restId = Integer.parseInt(query.split("restaurant_id=")[1].split("&")[0]);
+                    coupons = cm.getCouponsByRestaurant(restId);
+                } else {
+                    coupons = cm.getAllCoupons();
+                }
+
+                boolean first = true;
+                for (Coupon coupon : coupons) {
+                    if (!first) json.append(",");
+                    json.append("{");
+                    json.append("\"id\":").append(coupon.id).append(",");
+                    json.append("\"code\":\"").append(coupon.code).append("\",");
+                    json.append("\"restaurantId\":").append(coupon.restaurantId).append(",");
+                    json.append("\"discountType\":\"").append(coupon.discountType).append("\",");
+                    json.append("\"discountValue\":").append(coupon.discountValue).append(",");
+                    json.append("\"minOrder\":").append(coupon.minOrder);
+                    json.append("}");
+                    first = false;
+                }
+                json.append("]");
+                sendResponse(exchange, 200, json.toString());
+            }
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            byte[] bytes = responseText.getBytes();
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+        }
+    }
+
+    static class ApiValidateCouponHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try {
+                    String body = new String(exchange.getRequestBody().readAllBytes());
+                    String code = "";
+                    double orderTotal = 0;
+                    int restaurantId = 0;
+                    int userId = 0;
+                    String monthYear = "";
+                    
+                    // Parse all parameters
+                    String[] params = body.split("&");
+                    for (String param : params) {
+                        if (param.contains("=")) {
+                            String[] kv = param.split("=", 2);
+                            String key = kv[0];
+                            String value = kv.length > 1 ? java.net.URLDecoder.decode(kv[1], "UTF-8") : "";
+                            
+                            if ("code".equals(key)) code = value;
+                            else if ("total".equals(key)) orderTotal = Double.parseDouble(value);
+                            else if ("restaurantId".equals(key)) restaurantId = Integer.parseInt(value);
+                            else if ("userId".equals(key)) userId = Integer.parseInt(value);
+                            else if ("monthYear".equals(key)) monthYear = value;
+                        }
+                    }
+                    
+                    System.out.println("Validating coupon: " + code + " for restaurant: " + restaurantId + ", user: " + userId + ", month: " + monthYear);
+
+                    CouponManager cm = new CouponManager();
+                    Coupon coupon = cm.getCouponByCode(code);
+
+                    if (coupon == null) {
+                        String json = "{\"valid\":false,\"message\":\"Coupon not found\"}";
+                        sendResponse(exchange, 200, json);
+                        return;
+                    }
+
+                    // Check if coupon is valid for this restaurant
+                    if (!cm.isValidCouponForRestaurant(code, restaurantId)) {
+                        String json = "{\"valid\":false,\"message\":\"This coupon is not valid for the selected restaurant\"}";
+                        sendResponse(exchange, 200, json);
+                        return;
+                    }
+
+                    // Check minimum order
+                    if (orderTotal < coupon.minOrder) {
+                        String json = "{\"valid\":false,\"message\":\"Minimum order of Tk " + coupon.minOrder + " required\"}";
+                        sendResponse(exchange, 200, json);
+                        return;
+                    }
+
+                    // Check usage limit (max 2 times per user per month)
+                    int usageCount = cm.getCouponUsageCount(userId, coupon.id, monthYear);
+                    if (usageCount >= 2) {
+                        String json = "{\"valid\":false,\"message\":\"You have reached the usage limit (max 2 times per month) for this coupon\"}";
+                        sendResponse(exchange, 200, json);
+                        return;
+                    }
+
+                    // All validations passed
+                    double discount = cm.calculateDiscount(coupon, orderTotal);
+                    String json = "{\"valid\":true,\"discount\":" + discount + ",\"code\":\"" + coupon.code + "\",\"couponId\":" + coupon.id + "}";
+                    System.out.println("Coupon validated successfully: " + json);
+                    sendResponse(exchange, 200, json);
+                    
+                } catch (Exception e) {
+                    System.err.println("Error validating coupon: " + e.getMessage());
+                    e.printStackTrace();
+                    String json = "{\"valid\":false,\"message\":\"Error validating coupon: " + e.getMessage().replace("\"", "\\\"") + "\"}";
+                    sendResponse(exchange, 200, json);
+                }
+            }
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            byte[] bytes = responseText.getBytes();
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+        }
+    }
+
+    static class ApiOrderStatusHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery();
+                if (query == null || !query.contains("order_id=")) {
+                    sendResponse(exchange, 400, "{\"error\":\"Missing order_id\"}");
+                    return;
+                }
+
+                int orderId = Integer.parseInt(query.split("order_id=")[1].split("&")[0]);
+                OrderTracker tracker = new OrderTracker();
+                OrderTracker.OrderInfo order = tracker.getOrderById(orderId);
+
+                if (order != null) {
+                    String json = "{\"orderId\":" + order.orderId + ",\"status\":\"" + order.status + 
+                                  "\",\"paymentStatus\":\"" + order.paymentStatus + "\",\"deliveryTime\":" + 
+                                  order.deliveryTime + "}";
+                    sendResponse(exchange, 200, json);
+                } else {
+                    sendResponse(exchange, 404, "{\"error\":\"Order not found\"}");
+                }
+            }
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            byte[] bytes = responseText.getBytes();
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+        }
+    }
+
+    static class ApiUserOrdersHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery();
+                if (query == null || !query.contains("user_id=")) {
+                    sendResponse(exchange, 400, "{\"error\":\"Missing user_id\"}");
+                    return;
+                }
+
+                int userId = Integer.parseInt(query.split("user_id=")[1].split("&")[0]);
+                OrderTracker tracker = new OrderTracker();
+                List<OrderTracker.OrderInfo> orders = tracker.getUserOrders(userId);
+
+                StringBuilder json = new StringBuilder("[");
+                boolean first = true;
+                for (OrderTracker.OrderInfo order : orders) {
+                    if (!first) json.append(",");
+                    json.append("{\"orderId\":").append(order.orderId).append(",\"restaurantId\":").append(order.restaurantId)
+                        .append(",\"status\":\"").append(order.status).append("\",\"paymentStatus\":\"").append(order.paymentStatus)
+                        .append("\",\"total\":").append(order.finalTotal).append(",\"deliveryTime\":")
+                        .append(order.deliveryTime).append("}");
+                    first = false;
+                }
+                json.append("]");
+                sendResponse(exchange, 200, json.toString());
+            }
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            byte[] bytes = responseText.getBytes();
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+        }
+    }
+
+    static class ApiPaymentHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("POST".equals(exchange.getRequestMethod())) {
+                try {
+                    byte[] requestBody = exchange.getRequestBody().readAllBytes();
+                    String body = new String(requestBody);
+                    System.out.println("Payment request body: " + body);
+                    
+                    String method = "Cash"; // default
+                    double amount = 0;
+                    int userId = 0;
+                    int restaurantId = 0;
+                    double discount = 0;
+                    String coupon = "";
+                    double subtotal = 0;
+                    String cartItemsJson = "[]";
+                    
+                    // Parse all parameters
+                    if (!body.isEmpty()) {
+                        String[] params = body.split("&");
+                        for (String param : params) {
+                            if (param.contains("=")) {
+                                String[] kv = param.split("=", 2);
+                                String key = kv[0];
+                                String value = kv.length > 1 ? java.net.URLDecoder.decode(kv[1], "UTF-8") : "";
+                                
+                                if ("paymentMethod".equals(key)) {
+                                    method = value;
+                                } else if ("amount".equals(key)) {
+                                    amount = Double.parseDouble(value);
+                                } else if ("userId".equals(key)) {
+                                    userId = Integer.parseInt(value);
+                                } else if ("restaurantId".equals(key)) {
+                                    restaurantId = Integer.parseInt(value);
+                                } else if ("discount".equals(key)) {
+                                    discount = Double.parseDouble(value);
+                                } else if ("subtotal".equals(key)) {
+                                    subtotal = Double.parseDouble(value);
+                                } else if ("coupon".equals(key)) {
+                                    coupon = value;
+                                } else if ("cartItems".equals(key)) {
+                                    cartItemsJson = value;
+                                }
+                            }
+                        }
+                    }
+                    
+                    System.out.println("Payment details - User: " + userId + ", Restaurant: " + restaurantId + ", Method: " + method + ", Amount: " + amount);
+                    
+                    PaymentService ps = new PaymentService();
+                    PaymentService.PaymentInfo payment = ps.processPayment(method, amount);
+
+                    // Save order to database if payment is successful
+                    int orderId = 0;
+                    if ("COMPLETED".equals(payment.status)) {
+                        orderId = saveOrderToDatabase(userId, restaurantId, subtotal, discount, amount, coupon, method, "PENDING", "COMPLETED", cartItemsJson);
+                        System.out.println("Order created with ID: " + orderId);
+                        
+                        // Record coupon usage if a coupon was applied
+                        if (!coupon.isEmpty()) {
+                            CouponManager cm = new CouponManager();
+                            Coupon couponObj = cm.getCouponByCode(coupon);
+                            if (couponObj != null) {
+                                String monthYear = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM"));
+                                cm.recordCouponUsage(userId, couponObj.id, coupon, monthYear);
+                                System.out.println("Coupon usage recorded: user=" + userId + ", coupon=" + coupon + ", month=" + monthYear);
+                            }
+                        }
+                    }
+
+                    String json = "{\"method\":\"" + escapeJson(payment.method) + "\",\"amount\":" + payment.amount + 
+                                  ",\"status\":\"" + payment.status + "\",\"transactionId\":\"" + 
+                                  escapeJson(payment.transactionId) + "\",\"orderId\":" + orderId + "}";
+                    
+                    System.out.println("Payment response: " + json);
+                    sendResponse(exchange, 200, json);
+                } catch (Exception e) {
+                    System.err.println("Payment error: " + e.getMessage());
+                    e.printStackTrace();
+                    String errorJson = "{\"error\":\"" + escapeJson(e.getMessage()) + "\",\"status\":\"FAILED\"}";
+                    sendResponse(exchange, 500, errorJson);
+                }
+            }
+        }
+
+        private int saveOrderToDatabase(int userId, int restaurantId, double subtotal, double discount, double finalTotal, String coupon, String paymentMethod, String status, String paymentStatus, String cartItemsJson) {
+            try {
+                // Parse cartItems to build items string (id1:qty1;id2:qty2;...)
+                String itemsStr = parseCartItemsToString(cartItemsJson);
+                
+                // Read current orders to find max ID
+                int maxId = 0;
+                java.util.List<String> allLines = new java.util.ArrayList<>();
+                try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader("database/orders.csv"))) {
+                    String line = br.readLine(); // header
+                    if (line != null) allLines.add(line);
+                    while ((line = br.readLine()) != null) {
+                        allLines.add(line);
+                        String[] parts = line.split(",");
+                        if (parts.length > 0) {
+                            int id = Integer.parseInt(parts[0]);
+                            if (id > maxId) maxId = id;
+                        }
+                    }
+                }
+                
+                int orderId = maxId + 1;
+                String orderedAt = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                int deliveryTime = 30; // default 30 minutes
+                
+                // Format: id,user_id,rest_id,status,payment_method,payment_status,total,discount,final_total,items,coupon_code,delivery_time,ordered_at
+                String newOrder = String.format("%d,%d,%d,%s,%s,%s,%.2f,%.2f,%.2f,%s,%s,%d,%s",
+                    orderId, userId, restaurantId, status, paymentMethod, paymentStatus, 
+                    subtotal, discount, finalTotal, itemsStr, coupon, deliveryTime, orderedAt);
+                
+                try (java.io.FileWriter fw = new java.io.FileWriter("database/orders.csv", true);
+                     java.io.BufferedWriter bw = new java.io.BufferedWriter(fw)) {
+                    bw.newLine();
+                    bw.write(newOrder);
+                    bw.flush();
+                    System.out.println("Order saved to CSV: " + newOrder);
+                }
+                
+                return orderId;
+            } catch (Exception e) {
+                System.err.println("Error saving order: " + e.getMessage());
+                e.printStackTrace();
+                return 0;
+            }
+        }
+
+        private String parseCartItemsToString(String cartItemsJson) {
+            // Simple regex parsing to extract {id: X, quantity: Y} from JSON array
+            StringBuilder sb = new StringBuilder();
+            try {
+                // Extract all {id: X, quantity: Y} objects from the JSON array
+                java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\{[^}]*\"id\"\\s*:\\s*(\\d+)[^}]*\"quantity\"\\s*:\\s*(\\d+)[^}]*\\}");
+                java.util.regex.Matcher matcher = pattern.matcher(cartItemsJson);
+                boolean first = true;
+                while (matcher.find()) {
+                    if (!first) sb.append(";");
+                    String id = matcher.group(1);
+                    String qty = matcher.group(2);
+                    sb.append(id).append(":").append(qty);
+                    first = false;
+                }
+            } catch (Exception e) {
+                System.err.println("Error parsing cartItems JSON: " + e.getMessage());
+            }
+            return sb.toString();
+        }
+        
+        private String escapeJson(String input) {
+            if (input == null) return "";
+            return input.replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
+            byte[] bytes = responseText.getBytes("UTF-8");
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
+        }
+    }
+
+    static class ApiSearchMenuHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            addCorsHeaders(exchange);
+            if (handlePreflight(exchange)) {
+                return;
+            }
+
+            if ("GET".equals(exchange.getRequestMethod())) {
+                String query = exchange.getRequestURI().getQuery();
+                String searchTerm = "";
+                if (query != null && query.contains("q=")) {
+                    searchTerm = java.net.URLDecoder.decode(query.split("q=")[1].split("&")[0], "UTF-8").toLowerCase();
+                }
+
+                StringBuilder json = new StringBuilder("[");
+                try (BufferedReader br = new BufferedReader(new FileReader("database/menu.csv"))) {
+                    String line = br.readLine(); // skip header
+                    boolean first = true;
+                    while ((line = br.readLine()) != null) {
+                        String[] values = line.split(",");
+                        if (values.length >= 5) {
+                            String name = values[1].toLowerCase();
+                            if (name.contains(searchTerm)) {
+                                if (!first) json.append(",");
+                                json.append("{");
+                                json.append("\"id\":").append(values[0]).append(",");
+                                json.append("\"name\":\"").append(values[1]).append("\",");
+                                json.append("\"restaurantId\":").append(values[2]).append(",");
+                                json.append("\"price\":").append(values[4]);
+                                json.append("}");
+                                first = false;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                json.append("]");
+                sendResponse(exchange, 200, json.toString());
+            }
+        }
+
+        private void sendResponse(HttpExchange exchange, int statusCode, String responseText) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            byte[] bytes = responseText.getBytes();
+            exchange.sendResponseHeaders(statusCode, bytes.length);
+            OutputStream os = exchange.getResponseBody();
+            os.write(bytes);
+            os.close();
         }
     }
 }
